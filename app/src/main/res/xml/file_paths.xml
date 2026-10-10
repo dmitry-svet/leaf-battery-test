@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- data log files shared via FileProvider (Send log button) -->
+<paths>
+    <external-files-path name="logs" path="LOG_FILES/" />
+    <files-path name="logs_internal" path="LOG_FILES/" />
+</paths>

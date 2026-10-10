@@ -42,18 +42,25 @@ import kotlinx.coroutines.delay
 @Composable
 fun MainScreen(
     state: BatteryState,
-    dataLogOn: Boolean,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
-    onToggleLog: () -> Unit,
+    onLog: (Boolean) -> Unit,
     onSendLog: () -> Unit,
 ) {
     val test = remember { PowerTest() }
     var rev by remember { mutableIntStateOf(0) }     // bump to recompose after mutations
+    // the data log runs exactly for one test: Start test opens a file, the
+    // verdict closes it, Send log hands it over
+    fun feed(a: Double, v: Double, cells: List<Int>) {
+        val before = test.phase
+        test.onSample(a, v, cells)
+        if (test.phase == PowerTest.Phase.RESULT && before != PowerTest.Phase.RESULT) onLog(false)
+        rev++
+    }
     LaunchedEffect(state.cycle) {
         val a = state.leaf.packAmps
         val v = state.leaf.packVolts
-        if (state.connected && a != null && v != null) { test.onSample(a, v, state.leaf.cellsMv); rev++ }
+        if (state.connected && a != null && v != null) feed(a, v, state.leaf.cellsMv)
     }
     LaunchedEffect(Unit) {
         while (true) { delay(1000); test.onTick(); rev++ }
@@ -135,15 +142,15 @@ fun MainScreen(
                 },
             )
         }
-        Button(onClick = { test.restart(); rev++ }, modifier = Modifier.fillMaxWidth()) { Text("Restart test") }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onToggleLog, modifier = Modifier.weight(1f)) {
-                Text(
-                    if (dataLogOn) "■ Stop log" else "● Start log",
-                    color = if (dataLogOn) danger else MaterialTheme.colorScheme.primary,
-                )
-            }
-            OutlinedButton(onClick = onSendLog, modifier = Modifier.weight(1f)) { Text("Send log") }
+        val running = test.phase != PowerTest.Phase.READY && test.phase != PowerTest.Phase.RESULT
+        Button(
+            onClick = { if (!running) onLog(true); test.start(); rev++ },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (running) "Restart test" else "Start test")
+        }
+        if (test.phase == PowerTest.Phase.RESULT) {
+            OutlinedButton(onClick = onSendLog, modifier = Modifier.fillMaxWidth()) { Text("Send log") }
         }
     }
 }

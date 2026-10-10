@@ -14,8 +14,10 @@ ELM327 driver and decoders, without the economy/trip features).
 - Status + Connect/Disconnect (auto-reconnects to the last dongle).
 - VIN, SOH, Hx, odometer (km, from the meter ECU), pack temps, outside temp.
 - Big live cards: pack A, pack V, km/h, lowest cell V (~1.5 s refresh).
-- Test prompt / countdown / verdict, "Restart test".
-- "Start log / Stop log" and "Send log".
+- Test prompt / countdown / verdict.
+- One button: **Start test** (opens a new data log file and arms the test)
+  / **Restart test** while a run is in progress; after the verdict the log
+  closes and **Send log** appears.
 
 ## The step test
 
@@ -42,8 +44,9 @@ this app does not read (GPS, gids, 12 V, tires, power by consumer, charge
 counters, RPM, torque) are blank.
 
 Files: `Android/data/com.svet.leafbatterytest/files/LOG_FILES/
-Log_<VIN last 8>_YYMMDD_HHmmss.csv`, one per Start..Stop. "Send log" hands
-the running or latest file to Telegram (if installed) or the share sheet.
+Log_<VIN last 8>_YYMMDD_HHmmss.csv`, one per test (Start test .. verdict).
+"Send log" hands the latest file to Telegram (if installed) or the share
+sheet.
 
 ## What is read, and how
 

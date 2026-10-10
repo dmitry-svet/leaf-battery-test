@@ -11,13 +11,14 @@ import java.util.Locale
  */
 class PowerTest {
 
-    enum class Phase { IDLE, COUNTDOWN, FLOOR, RELEASE, RESULT }
+    enum class Phase { READY, IDLE, COUNTDOWN, FLOOR, RELEASE, RESULT }
 
-    var phase = Phase.IDLE
+    /** READY = not armed yet: samples are ignored until [start]. */
+    var phase = Phase.READY
         private set
     var countdown = COUNTDOWN_S
         private set
-    var message = IDLE_MSG
+    var message = READY_MSG
         private set
     var ok = false
         private set
@@ -45,6 +46,7 @@ class PowerTest {
 
     fun onSample(amps: Double, volts: Double, cellsMv: List<Int> = emptyList()) {
         when (phase) {
+            Phase.READY -> {}
             Phase.IDLE -> if (amps in CRUISE) startCountdown(amps, volts, cellsMv)
             Phase.COUNTDOWN -> if (amps in CRUISE) {
                 steadyCount++; steadyAmps = amps; steadyV = volts; steadyCells = cellsMv
@@ -78,6 +80,10 @@ class PowerTest {
         if (countdown <= 0) phase = Phase.FLOOR
     }
 
+    /** Arm the test (from READY or after a RESULT): start listening for the cruise. */
+    fun start() = reset(IDLE_MSG)
+
+    /** Same as [start]; kept for the mid-run "restart" button. */
     fun restart() = reset(IDLE_MSG)
 
     private fun startCountdown(amps: Double, volts: Double, cellsMv: List<Int>) {
@@ -135,5 +141,6 @@ class PowerTest {
         const val MIN_STEADY = 4        // cruise samples needed before the step
         const val FLOOR_TIMEOUT = 8     // samples after the floor command
         const val IDLE_MSG = "Розженіться на круїзі до ~60 км/год і тримайте рівний газ (30–60 А)"
+        const val READY_MSG = "Натисніть Start test, потім виїжджайте на рівну дорогу"
     }
 }

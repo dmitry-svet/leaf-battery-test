@@ -11,7 +11,7 @@ class PowerTestTest {
 
     /** Cruise, let the countdown run out, then floor it with the given samples. */
     private fun run(steady: Int, vararg accel: Double): PowerTest {
-        val t = PowerTest()
+        val t = PowerTest().apply { start() }
         t.cruise(steady, v = 385.0 - 50.0 * 0.12)        // same 120 mOhm model as below
         repeat(PowerTest.COUNTDOWN_S) { t.onTick() }
         assertEquals(PowerTest.Phase.FLOOR, t.phase)
@@ -19,8 +19,17 @@ class PowerTestTest {
         return t
     }
 
-    @Test fun idleUntilCruiseCurrent() {
+    @Test fun ignoresSamplesUntilStarted() {
         val t = PowerTest()
+        assertEquals(PowerTest.Phase.READY, t.phase)
+        t.onSample(45.0, 385.0)
+        assertEquals(PowerTest.Phase.READY, t.phase)
+        t.start()
+        assertEquals(PowerTest.Phase.IDLE, t.phase)
+    }
+
+    @Test fun idleUntilCruiseCurrent() {
+        val t = PowerTest().apply { start() }
         assertEquals(PowerTest.Phase.IDLE, t.phase)
         t.onSample(5.0, 390.0)
         assertEquals(PowerTest.Phase.IDLE, t.phase)
@@ -30,7 +39,7 @@ class PowerTestTest {
     }
 
     @Test fun leavingCruiseWindowResets() {
-        val t = PowerTest()
+        val t = PowerTest().apply { start() }
         t.cruise(2)
         t.onTick()
         t.onSample(-12.0, 390.0)          // lifted off: regen
@@ -39,7 +48,7 @@ class PowerTestTest {
     }
 
     @Test fun countdownReachesFloorCommand() {
-        val t = PowerTest()
+        val t = PowerTest().apply { start() }
         t.cruise(1)
         repeat(PowerTest.COUNTDOWN_S - 1) { t.onTick() }
         assertEquals(PowerTest.Phase.COUNTDOWN, t.phase)
@@ -59,7 +68,7 @@ class PowerTestTest {
     }
 
     @Test fun releaseShownOnFirstHighSample() {
-        val t = PowerTest()
+        val t = PowerTest().apply { start() }
         t.cruise(5)
         repeat(PowerTest.COUNTDOWN_S) { t.onTick() }
         t.onSample(280.0, 350.0)
@@ -104,7 +113,7 @@ class PowerTestTest {
     }
 
     @Test fun reportsWorstCellDrop() {
-        val t = PowerTest()
+        val t = PowerTest().apply { start() }
         val cruiseCells = List(96) { 3950 }
         val peakCells = List(96) { i -> if (i == 16) 3400 else 3700 }   // cell #17 sags most
         repeat(5) { t.onSample(50.0, 379.0, cruiseCells) }

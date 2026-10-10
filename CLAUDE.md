@@ -47,9 +47,10 @@ version with `~/android-sdk/build-tools/*/aapt2 dump badging <apk>`.
   (pack mOhm, per cell) plus the cell with the biggest cruise-to-peak drop.
 - Pack current from `2101` p8-11 (signed / 1024 A, raw sign flipped so + =
   discharge). Hx = raw / 102.4 (matches LeafSpy; public decoders say /100).
-- Data log: `LOG_FILES/Log_<VIN last 8>_YYMMDD_HHmmss.csv`, one per
-  Start..Stop, LeafSpy 0.52 column layout; Send log shares it via
-  FileProvider (Telegram if installed).
+- Data log: `LOG_FILES/Log_<VIN last 8>_YYMMDD_HHmmss.csv`, one per test:
+  "Start test" opens it (and arms `PowerTest` from READY), the verdict
+  closes it, "Send log" shares it via FileProvider (Telegram if installed).
+  LeafSpy 0.52 column layout.
 - ELM327 reads block forever: `BatteryPoller` has a 30 s watchdog that
   closes the transport; the activity auto-reconnects every 10 s.
 

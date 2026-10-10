@@ -29,8 +29,7 @@ class BatteryViewModel(app: Application) : AndroidViewModel(app) {
     private val _lastDevice = MutableStateFlow(prefs.getString("last_device", null))
     val lastDevice: StateFlow<String?> = _lastDevice.asStateFlow()
 
-    private val _dataLogOn = MutableStateFlow(prefs.getBoolean("data_log", false))
-    val dataLogOn: StateFlow<Boolean> = _dataLogOn.asStateFlow()
+    private val _dataLogOn = MutableStateFlow(false)      // runs for one test at a time
 
     /** Whether to auto-reconnect (disabled by a manual disconnect). */
     @Volatile var autoReconnect = true
@@ -92,7 +91,6 @@ class BatteryViewModel(app: Application) : AndroidViewModel(app) {
     fun setDataLog(on: Boolean) {
         _dataLogOn.value = on
         if (!on) logStore.stop()
-        prefs.edit().putBoolean("data_log", on).apply()
     }
 
     fun latestDataLogFile(): java.io.File? = logStore.latest()

@@ -54,7 +54,6 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun App(vm: BatteryViewModel) {
         val state by vm.state.collectAsState()
-        val dataLogOn by vm.dataLogOn.collectAsState()
         val context = LocalContext.current
         var showPicker by remember { mutableStateOf(false) }
 
@@ -100,10 +99,9 @@ class MainActivity : ComponentActivity() {
 
         MainScreen(
             state = state,
-            dataLogOn = dataLogOn,
             onConnect = ::onConnect,
             onDisconnect = { vm.disconnect() },
-            onToggleLog = { vm.setDataLog(!dataLogOn) },
+            onLog = { vm.setDataLog(it) },
             onSendLog = { sendDataLog() },
         )
 

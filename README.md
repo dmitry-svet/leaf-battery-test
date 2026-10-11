@@ -34,7 +34,9 @@ ELM327 driver and decoders, without the economy/trip features).
    - fewer than 4 cruise samples -> too little time before the step;
    - peak power (A x V) below 70 kW -> not floored (the motor is
      power-limited at ~80 kW, so full throttle is only ~210-250 A);
-   - otherwise **OK**: `R = dV / dI` between the cruise and peak samples,
+   - otherwise **OK**: `R = dV / dI` between the cruise sample and the
+     high sample with the deepest pack-voltage sag (the first sample after
+     the step is skipped: its pack V and part of the cell table are stale),
      in pack mOhm and per cell, plus the cell with the biggest
      cruise-to-peak drop and the lowest cell at the peak.
 

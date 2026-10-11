@@ -48,7 +48,11 @@ version with `~/android-sdk/build-tools/*/aapt2 dump badging <apk>`.
   70 kW = not floored (full throttle on this car = ~245 A / 345 V = 85 kW,
   current is power-limited so an amps threshold would be SOC-dependent);
   else R = dV/dI (pack mOhm, per cell) plus the cell with the biggest
-  cruise-to-peak drop.
+  cruise-to-peak drop. Peak = high sample with the LOWEST pack V, never
+  the first high sample unless it is the only one: the LBC reports the
+  shunt current instantly but pack V and the cell table lag, and the cell
+  table refreshes in 12-cell groups, so the first post-step sample mixes
+  fresh and stale cells (seen as cells with 0 mOhm).
 - Pack current from `2101` p8-11 (signed / 1024 A, raw sign flipped so + =
   discharge). Hx = raw / 102.4 (matches LeafSpy; public decoders say /100).
 - Data log: `LOG_FILES/Log_<VIN last 8>_YYMMDD_HHmmss.csv`, one per test:

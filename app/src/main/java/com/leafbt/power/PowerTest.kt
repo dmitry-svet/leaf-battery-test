@@ -50,6 +50,7 @@ class PowerTest {
     private var floorSamples = 0
     private var highSamples = 0       // consecutive samples >= STEP_A
     private var peakV = 0.0
+    private var peakIsFirst = false   // peak is still the first (mixed-snapshot) high sample
 
     fun onSample(amps: Double, volts: Double, cellsMv: List<Int> = emptyList()) {
         when (phase) {
@@ -81,7 +82,7 @@ class PowerTest {
                     if (left <= 0) finish()
                 }
             }
-            Phase.RELEASE -> if (amps >= STEP_A) trackPeak(amps, volts, cellsMv) else finish()
+            Phase.RELEASE -> if (amps >= STEP_A) { highSamples++; trackPeak(amps, volts, cellsMv) } else finish()
             Phase.RESULT -> {}
         }
     }
@@ -105,13 +106,23 @@ class PowerTest {
         countdown = COUNTDOWN_S
         steadyCount = 1; steadyAmps = amps; steadyV = volts; steadyCells = cellsMv
         peakCells = emptyList(); worstCell = null; worstDropMv = null
-        intermediates = 0; sawRegen = false; floorSamples = 0; highSamples = 0
+        intermediates = 0; sawRegen = false; floorSamples = 0; highSamples = 0; peakIsFirst = false
         peakAmps = null; packMilliOhm = null; ok = false
         message = "$countdown"; detail = null
     }
 
+    /**
+     * Peak = the high sample with the lowest pack voltage (deepest sag). The
+     * first sample after the step is a mixed snapshot: the shunt current is
+     * already up, but the LBC's pack voltage and part of the cell table are
+     * still pre-step (seen as cells with zero drop) - it only serves as a
+     * fallback when the pedal was released before a second high sample.
+     */
     private fun trackPeak(amps: Double, volts: Double, cellsMv: List<Int>) {
-        if (peakAmps == null || amps > peakAmps!!) { peakAmps = amps; peakV = volts; peakCells = cellsMv }
+        val first = highSamples == 1
+        if (peakAmps == null || peakIsFirst || (!first && volts < peakV)) {
+            peakAmps = amps; peakV = volts; peakCells = cellsMv; peakIsFirst = first
+        }
     }
 
     private fun finish() {

@@ -127,6 +127,25 @@ class PowerTestTest {
         assertTrue(t.message, t.message.contains("85 кВт"))
     }
 
+    @Test fun peakIsTheDeepestSagNotTheFirstHighSample() {
+        // 2026-10-11 second run: row 18 = 253 A but pack V (361.9) and most
+        // cells still pre-step; row 19 = 248 A / 340.1 V fully settled
+        val t = PowerTest()
+        t.start()
+        val cruise = List(96) { 3790 }
+        val mixed = List(96) { i -> if (i < 12) 3540 else 3790 }     // only cells 1-12 refreshed
+        val settled = List(96) { 3530 }
+        repeat(6) { t.onSample(45.2, 364.9, cruise) }
+        repeat(PowerTest.COUNTDOWN_S) { t.onTick() }
+        t.onSample(253.2, 361.9, mixed)
+        t.onSample(248.4, 340.1, settled)
+        t.onSample(8.0, 370.0, cruise)
+        assertTrue(t.message, t.ok)
+        assertEquals(248.4, t.peakAmps!!, 1e-9)
+        assertEquals(122.0, t.packMilliOhm!!, 1.0)
+        assertEquals(260, t.worstDropMv)
+    }
+
     @Test fun floorPhaseShowsLiveAmpsAndSecondsLeft() {
         val t = run(6, 58.0)
         assertEquals("58 A · треба ≥150 A · 7 с", t.detail)

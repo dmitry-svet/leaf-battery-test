@@ -67,42 +67,75 @@ class PowerTestTest {
         assertTrue(t.message.contains("120"))
     }
 
-    @Test fun releaseShownOnFirstHighSample() {
+    @Test fun releaseShownAfterHoldSamples() {
         val t = PowerTest().apply { start() }
         t.cruise(5)
         repeat(PowerTest.COUNTDOWN_S) { t.onTick() }
+        t.onSample(280.0, 350.0)
+        assertEquals(PowerTest.Phase.FLOOR, t.phase)
+        assertEquals("ТРИМАЙ", t.message)
         t.onSample(280.0, 350.0)
         assertEquals(PowerTest.Phase.RELEASE, t.phase)
     }
 
     @Test fun twoIntermediateStepsIsNotAbrupt() {
-        val t = run(6, 100.0, 180.0, 290.0, 50.0)
+        val t = run(6, 80.0, 120.0, 290.0, 300.0, 50.0)
         assertEquals(PowerTest.Phase.RESULT, t.phase)
         assertTrue(!t.ok)
         assertTrue(t.message, t.message.contains("різко"))
     }
 
     @Test fun oneIntermediateStepIsFine() {
-        val t = run(6, 150.0, 290.0, 50.0)
+        val t = run(6, 100.0, 290.0, 300.0, 50.0)
         assertTrue(t.ok)
     }
 
     @Test fun regenBeforeStepVoidsRun() {
-        val t = run(6, -20.0, 290.0, 50.0)
+        val t = run(6, -20.0, 290.0, 300.0, 50.0)
         assertTrue(!t.ok)
         assertTrue(t.message, t.message.contains("реген"))
     }
 
     @Test fun tooFewCruiseSamples() {
-        val t = run(3, 290.0, 50.0)
+        val t = run(3, 290.0, 300.0, 50.0)
         assertTrue(!t.ok)
         assertTrue(t.message, t.message.contains("Мало часу"))
     }
 
-    @Test fun notFlooredWhenPeakBelow270() {
-        val t = run(6, 255.0, 260.0, 50.0)
+    @Test fun notFlooredWhenPeakPowerBelow70kW() {
+        val t = run(6, 160.0, 170.0, 50.0)       // 170 A * 365 V = 62 kW
         assertTrue(!t.ok)
         assertTrue(t.message, t.message.contains("підлогу"))
+        assertTrue(t.message, t.message.contains("62 кВт"))
+    }
+
+    @Test fun realRunFloorsAt245AmpsAndFirstSampleHasStaleVolts() {
+        // from the 2026-10-11 log: cruise ~55 A / 371.4 V, step 234 A (V still 366.6),
+        // 243 A / 347.4 V, 246 A / 345.5 V, then released
+        val t = PowerTest()
+        t.start()
+        repeat(6) { t.onSample(55.0, 371.4) }
+        repeat(PowerTest.COUNTDOWN_S) { t.onTick() }
+        t.onSample(234.0, 366.6)
+        assertEquals(PowerTest.Phase.FLOOR, t.phase)
+        t.onSample(243.2, 347.4)
+        assertEquals(PowerTest.Phase.RELEASE, t.phase)
+        t.onSample(245.7, 345.5)
+        t.onSample(10.0, 374.0)
+        assertTrue(t.message, t.ok)
+        assertEquals(136.0, t.packMilliOhm!!, 1.0)
+        assertTrue(t.message, t.message.contains("85 кВт"))
+    }
+
+    @Test fun floorPhaseShowsLiveAmpsAndSecondsLeft() {
+        val t = run(6, 58.0)
+        assertEquals("58 A · треба ≥150 A · 7 с", t.detail)
+    }
+
+    @Test fun releasingBeforeHoldStillGrades() {
+        val t = run(6, 290.0, 50.0)
+        assertEquals(PowerTest.Phase.RESULT, t.phase)
+        assertTrue(t.ok)
     }
 
     @Test fun noStepAtAllTimesOut() {
@@ -118,6 +151,7 @@ class PowerTestTest {
         val peakCells = List(96) { i -> if (i == 16) 3400 else 3700 }   // cell #17 sags most
         repeat(5) { t.onSample(50.0, 379.0, cruiseCells) }
         repeat(PowerTest.COUNTDOWN_S) { t.onTick() }
+        t.onSample(290.0, 349.0, peakCells)
         t.onSample(290.0, 349.0, peakCells)
         t.onSample(40.0, 380.0, cruiseCells)
         assertTrue(t.ok)

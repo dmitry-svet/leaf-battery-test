@@ -142,6 +142,7 @@ fun MainScreen(
                     else -> Color.Unspecified
                 },
             )
+            test.detail?.let { Text(it, fontSize = 28.sp, textAlign = TextAlign.Center) }
         }
         val running = test.phase != PowerTest.Phase.READY && test.phase != PowerTest.Phase.RESULT
         Button(

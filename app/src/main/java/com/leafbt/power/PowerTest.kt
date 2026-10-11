@@ -4,10 +4,13 @@ import java.util.Locale
 
 /**
  * Guided full-throttle step test: hold a steady 30-60 A cruise, count down,
- * floor the pedal, release at the first high-current sample. From the
- * steady and peak (A, V) pairs the pack's DC internal resistance follows as
- * dV/dI. Pure state machine: feed [onSample] per poll cycle (+ = discharge)
- * and [onTick] once a second; read [phase], [countdown], [message].
+ * floor the pedal, release after [HOLD] high-current samples (the first one
+ * after the step still carries a stale pack voltage). From the steady and
+ * peak (A, V) pairs the pack's DC internal resistance follows as dV/dI.
+ * "Floored" is judged by peak power, not amps: the motor is power-limited
+ * (~80 kW), so full throttle is ~210-250 A depending on pack voltage.
+ * Pure state machine: feed [onSample] per poll cycle (+ = discharge) and
+ * [onTick] once a second; read [phase], [countdown], [message], [detail].
  */
 class PowerTest {
 
@@ -19,6 +22,9 @@ class PowerTest {
     var countdown = COUNTDOWN_S
         private set
     var message = READY_MSG
+        private set
+    /** Small line under [message]: live amps / what is still needed. */
+    var detail: String? = null
         private set
     var ok = false
         private set
@@ -39,9 +45,10 @@ class PowerTest {
     private var steadyV = 0.0
     private var steadyCells: List<Int> = emptyList()
     private var peakCells: List<Int> = emptyList()
-    private var intermediates = 0     // samples between cruise and the >= 250 A step
+    private var intermediates = 0     // samples between cruise and the >= STEP_A step
     private var sawRegen = false
     private var floorSamples = 0
+    private var highSamples = 0       // consecutive samples >= STEP_A
     private var peakV = 0.0
 
     fun onSample(amps: Double, volts: Double, cellsMv: List<Int> = emptyList()) {
@@ -53,21 +60,28 @@ class PowerTest {
             } else {
                 reset("Струм вийшов за 30–60 А. Тримайте рівний газ і спробуйте ще.")
             }
-            Phase.FLOOR -> {
-                floorSamples++
-                when {
-                    amps >= STEP_A -> {
-                        phase = Phase.RELEASE; message = "ВІДПУСКАЙ"
-                        peakAmps = amps; peakV = volts; peakCells = cellsMv
+            Phase.FLOOR -> when {
+                amps >= STEP_A -> {
+                    highSamples++
+                    trackPeak(amps, volts, cellsMv)
+                    if (highSamples >= HOLD) {
+                        phase = Phase.RELEASE; message = "ВІДПУСКАЙ"; detail = null
+                    } else {
+                        message = "ТРИМАЙ"
+                        detail = String.format(Locale.US, "%.0f A · ще %d", amps, HOLD - highSamples)
                     }
-                    amps < 0 -> sawRegen = true
-                    amps > CRUISE.endInclusive -> intermediates++
                 }
-                if (phase == Phase.FLOOR && floorSamples >= FLOOR_TIMEOUT) finish()
+                highSamples > 0 -> finish()          // let go before HOLD samples: grade what we have
+                else -> {
+                    floorSamples++
+                    if (amps < 0) sawRegen = true
+                    else if (amps > CRUISE.endInclusive) intermediates++
+                    val left = FLOOR_TIMEOUT - floorSamples
+                    detail = String.format(Locale.US, "%.0f A · треба ≥%.0f A · %d с", amps, STEP_A, left)
+                    if (left <= 0) finish()
+                }
             }
-            Phase.RELEASE -> if (amps >= STEP_A) {
-                if (amps > peakAmps!!) { peakAmps = amps; peakV = volts; peakCells = cellsMv }
-            } else finish()
+            Phase.RELEASE -> if (amps >= STEP_A) trackPeak(amps, volts, cellsMv) else finish()
             Phase.RESULT -> {}
         }
     }
@@ -77,7 +91,7 @@ class PowerTest {
         if (phase != Phase.COUNTDOWN) return
         countdown--
         message = if (countdown > 0) "$countdown" else "ВТОПИ В ПІДЛОГУ"
-        if (countdown <= 0) phase = Phase.FLOOR
+        if (countdown <= 0) { phase = Phase.FLOOR; detail = String.format(Locale.US, "треба ≥%.0f A", STEP_A) }
     }
 
     /** Arm the test (from READY or after a RESULT): start listening for the cruise. */
@@ -91,19 +105,26 @@ class PowerTest {
         countdown = COUNTDOWN_S
         steadyCount = 1; steadyAmps = amps; steadyV = volts; steadyCells = cellsMv
         peakCells = emptyList(); worstCell = null; worstDropMv = null
-        intermediates = 0; sawRegen = false; floorSamples = 0
+        intermediates = 0; sawRegen = false; floorSamples = 0; highSamples = 0
         peakAmps = null; packMilliOhm = null; ok = false
-        message = "$countdown"
+        message = "$countdown"; detail = null
+    }
+
+    private fun trackPeak(amps: Double, volts: Double, cellsMv: List<Int>) {
+        if (peakAmps == null || amps > peakAmps!!) { peakAmps = amps; peakV = volts; peakCells = cellsMv }
     }
 
     private fun finish() {
         phase = Phase.RESULT
+        detail = null
         val peak = peakAmps
+        val peakKw = if (peak == null) 0.0 else peak * peakV / 1000.0
         val fail = when {
             sawRegen -> "Розгін не зараховано: був реген"
             intermediates > 1 -> "Останній розгін некоректний: не різко натиснули газ"
             steadyCount < MIN_STEADY -> "Мало часу перед розгоном"
-            peak == null || peak < PEAK_A -> "Не втопили в підлогу"
+            peak == null -> "Не втопили в підлогу"
+            peakKw < PEAK_KW -> String.format(Locale.US, "Не втопили в підлогу: пік %.0f кВт, треба ≥%.0f", peakKw, PEAK_KW)
             else -> null
         }
         if (fail != null) { ok = false; message = fail; return }
@@ -111,8 +132,8 @@ class PowerTest {
         packMilliOhm = r
         ok = true
         message = String.format(
-            Locale.US, "OK: %.0f A / %.1f V → %.0f A / %.1f V\nR = %.0f мОм (%.2f мОм/ячейку)",
-            steadyAmps, steadyV, peak, peakV, r, r / 96.0,
+            Locale.US, "OK: %.0f A / %.1f V → %.0f A / %.1f V (%.0f кВт)\nR = %.0f мОм (%.2f мОм/ячейку)",
+            steadyAmps, steadyV, peak, peakV, peakKw, r, r / 96.0,
         )
         if (steadyCells.size == 96 && peakCells.size == 96) {
             val drops = steadyCells.indices.map { steadyCells[it] - peakCells[it] }
@@ -131,12 +152,14 @@ class PowerTest {
         phase = Phase.IDLE
         countdown = COUNTDOWN_S
         message = msg
+        detail = null
     }
 
     companion object {
         val CRUISE = 30.0..60.0
-        const val STEP_A = 250.0        // "release" threshold
-        const val PEAK_A = 270.0        // below this = not floored
+        const val STEP_A = 150.0        // a sample at/above this = the step has happened
+        const val HOLD = 2              // high samples to hold before RELEASE (first one has stale V)
+        const val PEAK_KW = 70.0        // peak A*V below this = not floored (motor limit ~80 kW)
         const val COUNTDOWN_S = 10
         const val MIN_STEADY = 4        // cruise samples needed before the step
         const val FLOOR_TIMEOUT = 8     // samples after the floor command

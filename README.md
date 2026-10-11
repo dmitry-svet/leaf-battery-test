@@ -24,13 +24,16 @@ ELM327 driver and decoders, without the economy/trip features).
 
 1. Cruise at ~60 km/h with a steady pedal so the pack current sits in
    **30-60 A**. The screen counts down **10..1**.
-2. **FLOOR IT.** At the first sample >= 250 A the screen says **RELEASE**.
+2. **FLOOR IT.** The screen shows the live current, the target (>= 150 A)
+   and the seconds left. The first sample >= 150 A says **HOLD** (its pack
+   voltage is still stale), the second says **RELEASE**.
 3. Verdict:
    - regen (negative current) between cruise and the step -> run void;
-   - more than one intermediate sample between 60 A and 250 A -> pedal not
+   - more than one intermediate sample between 60 A and 150 A -> pedal not
      pressed abruptly;
    - fewer than 4 cruise samples -> too little time before the step;
-   - peak below 270 A -> not floored;
+   - peak power (A x V) below 70 kW -> not floored (the motor is
+     power-limited at ~80 kW, so full throttle is only ~210-250 A);
    - otherwise **OK**: `R = dV / dI` between the cruise and peak samples,
      in pack mOhm and per cell, plus the cell with the biggest
      cruise-to-peak drop and the lowest cell at the peak.

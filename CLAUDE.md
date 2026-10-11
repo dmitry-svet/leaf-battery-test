@@ -55,6 +55,10 @@ version with `~/android-sdk/build-tools/*/aapt2 dump badging <apk>`.
   fresh and stale cells (seen as cells with 0 mOhm).
 - Pack current from `2101` p8-11 (signed / 1024 A, raw sign flipped so + =
   discharge). Hx = raw / 102.4 (matches LeafSpy; public decoders say /100).
+- Cells probe (`BatteryPoller.probe`, `BatteryViewModel.startProbe`): 60 s
+  of 2102-only reads, no sleep, into a `Probe_` log file. Diagnostic for the
+  LBC cell-table refresh cadence (first on-road data: table refreshes ~1 s,
+  group by group; LeafSpy's 4-6 s rows are just its cycle length, no sync).
 - Data log: `LOG_FILES/Log_<VIN last 8>_YYMMDD_HHmmss.csv`, one per test:
   "Start test" opens it (and arms `PowerTest` from READY), the verdict
   closes it, "Send log" shares it via FileProvider (Telegram if installed).

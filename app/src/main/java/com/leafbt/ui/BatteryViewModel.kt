@@ -12,6 +12,7 @@ import com.leafbt.poll.BatteryState
 import com.leafbt.transport.Transport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +31,11 @@ class BatteryViewModel(app: Application) : AndroidViewModel(app) {
     val lastDevice: StateFlow<String?> = _lastDevice.asStateFlow()
 
     private val _dataLogOn = MutableStateFlow(false)      // runs for one test at a time
+
+    /** Seconds left of the cells probe, 0 when idle. */
+    private val _probeLeft = MutableStateFlow(0)
+    val probeLeft: StateFlow<Int> = _probeLeft.asStateFlow()
+    private var probeJob: Job? = null
 
     /** Whether to auto-reconnect (disabled by a manual disconnect). */
     @Volatile var autoReconnect = true
@@ -70,6 +76,7 @@ class BatteryViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun disconnect() {
+        stopProbe()
         autoReconnect = false
         runCatching { LeafService.stop(getApplication()) }
         poller?.stop()
@@ -94,6 +101,32 @@ class BatteryViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun latestDataLogFile(): java.io.File? = logStore.latest()
+
+    /**
+     * Cells probe: for [PROBE_S] seconds the poller reads only 2102 back to
+     * back and every read goes to a Probe_ log file (ms timestamps + CP1..96),
+     * to see how often and in what order the LBC refreshes the cell table.
+     */
+    fun startProbe() {
+        val p = poller ?: return
+        probeJob?.cancel()
+        logStore.start(System.currentTimeMillis(), _state.value.leaf.vin, prefix = "Probe")
+        _dataLogOn.value = true
+        p.probe = true
+        probeJob = viewModelScope.launch {
+            for (left in PROBE_S downTo 1) { _probeLeft.value = left; delay(1000) }
+            stopProbe()
+        }
+    }
+
+    fun stopProbe() {
+        probeJob?.cancel(); probeJob = null
+        _probeLeft.value = 0
+        poller?.probe = false
+        setDataLog(false)
+    }
+
+    private companion object { const val PROBE_S = 60 }
 
     override fun onCleared() {
         disconnect()

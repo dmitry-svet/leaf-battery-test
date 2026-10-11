@@ -9,7 +9,7 @@ import java.util.Locale
 /**
  * LeafSpy-format data log files, one per logging session (Start log .. Stop
  * log): LOG_FILES/Log_<VIN last 8>_YYMMDD_HHmmss.csv, named like LeafSpy's
- * own files (VIN tail + start time). Blocking file IO - call off the main
+ * own files (VIN tail + start time); the cells probe uses the prefix Probe_. Blocking file IO - call off the main
  * thread.
  */
 class DataLogStore(root: File) {
@@ -19,11 +19,11 @@ class DataLogStore(root: File) {
     @Volatile var current: File? = null
         private set
 
-    fun start(nowMs: Long, vin: String?) {
+    fun start(nowMs: Long, vin: String?, prefix: String = "Log") {
         dir.mkdirs()
         val stamp = SimpleDateFormat("yyMMdd_HHmmss", Locale.US).format(Date(nowMs))
         val tag = vin?.takeLast(8) ?: "NOVIN"
-        val f = File(dir, "Log_${tag}_$stamp.csv")
+        val f = File(dir, "${prefix}_${tag}_$stamp.csv")
         f.writeText(csvLine(LeafSpyLog.HEADER))
         current = f
     }

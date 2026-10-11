@@ -40,6 +40,15 @@ ELM327 driver and decoders, without the economy/trip features).
      in pack mOhm and per cell, plus the cell with the biggest
      cruise-to-peak drop and the lowest cell at the peak.
 
+## Cells probe
+
+**Cells probe (60 s)** (shown while connected, no test running) makes the
+poller read only `2102` back to back (~0.4 s per read) and logs every read
+to `LOG_FILES/Probe_<VIN last 8>_YYMMDD_HHmmss.csv` (ms timestamps,
+CP1..CP96). Purpose: find out how often, and in which 12-cell groups, the
+LBC refreshes its cell table, so the step test can read it right after a
+full refresh. Pack A/V and speed are not updated during the probe.
+
 ## Data log
 
 LeafSpy 0.52 column layout (161 columns, same labels, order and value

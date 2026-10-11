@@ -47,6 +47,8 @@ fun MainScreen(
     onLog: (Boolean) -> Unit,
     onSendLog: () -> Unit,
     hasLog: Boolean,
+    probeLeft: Int,
+    onProbe: () -> Unit,
 ) {
     val test = remember { PowerTest() }
     var rev by remember { mutableIntStateOf(0) }     // bump to recompose after mutations
@@ -155,6 +157,12 @@ fun MainScreen(
         if (!running && hasLog) {
             OutlinedButton(onClick = onSendLog, modifier = Modifier.fillMaxWidth()) { Text("Send log") }
         }
+        // diagnostic: 60 s of back-to-back 2102 reads into a Probe_ log file
+        if (state.connected && !running) {
+            OutlinedButton(onClick = onProbe, modifier = Modifier.fillMaxWidth()) {
+                Text(if (probeLeft > 0) "Cells probe... $probeLeft s (stop)" else "Cells probe (60 s)")
+            }
+        }
     }
 }
 
@@ -173,7 +181,7 @@ private fun Live(label: String, value: String, modifier: Modifier = Modifier) {
     Card(modifier) {
         Column(Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(label, style = MaterialTheme.typography.titleMedium)
-            Text(value, fontSize = 44.sp, lineHeight = 50.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(value, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         }
     }
 }

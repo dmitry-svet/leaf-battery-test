@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
 
         // auto-reconnect to the last used dongle every 10 s until connected
         val lastDevice by vm.lastDevice.collectAsState()
+        val probeLeft by vm.probeLeft.collectAsState()
         LaunchedEffect(lastDevice) {
             val addr = lastDevice ?: return@LaunchedEffect
             if (adapter == null) return@LaunchedEffect
@@ -104,6 +105,8 @@ class MainActivity : ComponentActivity() {
             onLog = { vm.setDataLog(it) },
             onSendLog = { sendDataLog() },
             hasLog = vm.latestDataLogFile() != null,
+            probeLeft = probeLeft,
+            onProbe = { if (probeLeft > 0) vm.stopProbe() else vm.startProbe() },
         )
 
         if (showPicker && adapter != null) {

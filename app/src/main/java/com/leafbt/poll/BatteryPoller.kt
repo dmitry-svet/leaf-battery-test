@@ -15,7 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * (LBC 2101), all 96 cell voltages (2102) and speed (0x284) - about 1.5 s
  * per sample. Identity and slow values (VIN, SOH/Hx from 2161, pack temps
  * 2104, meter odometer, ambient 0x510) are read until known and then every
- * [SLOW_EVERY] cycles. [runBlocking] blocks: call it on an IO thread.
+ * [SLOW_EVERY] cycles. With [probe] set only 2102 is read, as fast as the
+ * dongle allows (~0.4 s), to measure how often the LBC refreshes its cell
+ * table. [runBlocking] blocks: call it on an IO thread.
  */
 class BatteryPoller(
     private val transport: Transport,
@@ -27,6 +29,8 @@ class BatteryPoller(
     val state: StateFlow<BatteryState> = _state.asStateFlow()
 
     @Volatile private var running = false
+    /** Cells probe: read only 2102 back to back (no 2101/speed/slow reads, no sleep). */
+    @Volatile var probe = false
     private var leaf = LeafState()
     private var cycle = 0
     private val fails = HashMap<String, Int>()      // consecutive failures per slow read
@@ -49,6 +53,13 @@ class BatteryPoller(
             while (running) {
                 val debug = ArrayList<String>()
                 debug.add("ELM: ${elm.elmId.ifBlank { "?" }}  ${elm.protocol}")
+                if (probe) {
+                    leaf = GroupDecoder.apply(leaf, IsoTp.reassemble(elm.queryRaw("2102")))
+                    cycle++
+                    lastProgressMs = System.currentTimeMillis()
+                    _state.value = BatteryState(leaf = leaf, connected = true, cycle = cycle, debug = debug)
+                    continue
+                }
                 for (g in listOf("2101", "2102")) {
                     if (!running) break
                     val payload = IsoTp.reassemble(elm.queryRaw(g))

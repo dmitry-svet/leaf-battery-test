@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
             onDisconnect = { vm.disconnect() },
             onLog = { vm.setDataLog(it) },
             onSendLog = { sendDataLog() },
+            hasLog = vm.latestDataLogFile() != null,
         )
 
         if (showPicker && adapter != null) {

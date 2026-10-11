@@ -46,6 +46,7 @@ fun MainScreen(
     onDisconnect: () -> Unit,
     onLog: (Boolean) -> Unit,
     onSendLog: () -> Unit,
+    hasLog: Boolean,
 ) {
     val test = remember { PowerTest() }
     var rev by remember { mutableIntStateOf(0) }     // bump to recompose after mutations
@@ -149,7 +150,8 @@ fun MainScreen(
         ) {
             Text(if (running) "Restart test" else "Start test")
         }
-        if (test.phase == PowerTest.Phase.RESULT) {
+        // the latest file stays sendable after the app restarts, away from the car
+        if (!running && hasLog) {
             OutlinedButton(onClick = onSendLog, modifier = Modifier.fillMaxWidth()) { Text("Send log") }
         }
     }

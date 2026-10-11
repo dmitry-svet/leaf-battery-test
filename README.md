@@ -17,7 +17,8 @@ ELM327 driver and decoders, without the economy/trip features).
 - Test prompt / countdown / verdict.
 - One button: **Start test** (opens a new data log file and arms the test)
   / **Restart test** while a run is in progress; after the verdict the log
-  closes and **Send log** appears.
+  closes. **Send log** is shown whenever a log file exists and no test is
+  running (also offline, after an app restart).
 
 ## The step test
 

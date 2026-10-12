@@ -6,19 +6,36 @@ SOH ~66 %, Hx ~50 %, odometer ~180 000 km).
 
 ## Step test calibration (this car)
 
-| run | file | cruise | peak (app pick) | R pack | R / cell | peak kW | worst cell |
-|---|---|---|---|---|---|---|---|
-| 2026-10-11 09:36 | `Log_DC401434_261011_093626.csv` | ~50 A / 378 V | 245 A / 345 V | ~136 mOhm | ~1.4 | 85 | - |
-| 2026-10-12 12:54 | `Log_DC401434_261012_125454.csv` | 33-36 A / 378.9 V | 233 A / 350.4 V | 130-134 mOhm | 1.36-1.39 | 85 | #17 -312 mV (3.624 V at peak) |
+| run | file | pack T | SOC | cruise | R at +1 s | +2 s | +3 s | first sample |
+|---|---|---|---|---|---|---|---|---|
+| 10-11 09:36 | `Log_DC401434_261011_093626.csv` | 19 C | 70 % | 56 A / 371.4 V | stale (27) | 128 | 136 | mixed, 76 stale cells |
+| 10-11 18:10 | `Log_DC401434_261011_181042.csv` | 21 C | 44 % | 45 A / 364.9 V | stale (14) | 122 | 144* | mixed, cells 1-20 fresh only |
+| 10-12 12:54 | `Log_DC401434_261012_125454.csv` | 21 C | 79 % | 53 A / 376.5 V | - | 119 | 131 | clean (step spread over 2 samples) |
+| 10-12 16:42 | `Log_DC401434_261012_164232.csv` | 25 C | 44 % | 52 A / 359.6 V | 104 | 110 | 113 | clean |
+| 10-12 16:43 | `Log_DC401434_261012_164341.csv` | 26 C | 42 % | 46 A / 358.9 V | 99 | 105 | 108 | clean |
 
-- Full throttle = 242-253 A at 340-354 V = 85-91 kW. The motor is power
+R = pack mOhm from the cruise sample to the high sample N seconds after
+the step (full throttle 242-253 A). `*` current already falling.
+
+- R depends on pack temperature more than anything else: 19 C -> ~130,
+  21 C -> ~122, 25-26 C -> ~105 mOhm at +2 s. Compare runs only at the
+  same temperature and the same hold time.
+- R grows with hold time (128 -> 152 mOhm from 2 s to 7 s on 10-11
+  09:36): ohmic + charge transfer by 1-2 s, diffusion adds ~15 % by 7 s.
+  A 2-3 s hold is enough; the cell ranking is stable from 2 s on
+  (correlation 2 s vs 7 s 0.76-0.84).
+- Whether the first high sample is mixed is timing luck: 2 of 5 runs had
+  the step land right after a read, so the next read was already settled.
+- Weakest cells in every run: #17, #18, then #25, #61, #64, #73.
+  Spread of per-cell R within +-10 % of the mean. Pack is even.
+- Full throttle = 242-253 A at 337-354 V = 85-91 kW. The motor is power
   limited (~80 kW), so the amps at full throttle depend on pack voltage /
   SOC: verdicts use peak kW (>= 70), not amps. Step threshold 150 A.
-- Per-cell R 1.23-1.51 mOhm, spread at peak 64-85 mV vs ~26 mV at cruise.
-  Weakest group #17/#18, then #13, #25, #61, #64, #73, #82 (305-312 mV
-  drop). Best #47 (-263 mV). Nothing outside 10 % of the mean: pack is
-  even for its SOH.
-- Min cell at full throttle 3.55-3.63 V.
+- Per-cell R 1.0-1.7 mOhm depending on temperature, spread at peak 64-85
+  mV vs ~26 mV at cruise. Min cell at full throttle 3.46-3.63 V.
+- Open issue: the app's peak = lowest pack V = the last sample before
+  release, so R depends on how long the pedal was held. A fixed hold
+  (e.g. the second settled sample, ~2 s) would make runs comparable.
 
 ## LBC cell-table refresh (probe 2026-10-12 07:59, `Probe_DC401434_261012_075935.csv`)
 

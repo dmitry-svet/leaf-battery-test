@@ -51,20 +51,32 @@ version with `~/android-sdk/build-tools/*/aapt2 dump badging <apk>`.
   cruise-to-peak drop. Peak = high sample with the LOWEST pack V, never
   the first high sample unless it is the only one: the LBC reports the
   shunt current instantly but pack V and the cell table lag, and the cell
-  table refreshes in 12-cell groups, so the first post-step sample mixes
-  fresh and stale cells (seen as cells with 0 mOhm).
+  table is rescanned continuously in 4-cell chunks (full pass ~0.65 s), so
+  the first post-step sample mixes fresh and stale cells (seen as cells
+  with 0 mOhm). A snapshot is consistent only after >= 0.7 s of steady
+  current.
 - Pack current from `2101` p8-11 (signed / 1024 A, raw sign flipped so + =
   discharge). Hx = raw / 102.4 (matches LeafSpy; public decoders say /100).
 - Cells probe (`BatteryPoller.probe`, `BatteryViewModel.startProbe`): 60 s
   of 2102-only reads, no sleep, into a `Probe_` log file. Diagnostic for the
-  LBC cell-table refresh cadence (first on-road data: table refreshes ~1 s,
-  group by group; LeafSpy's 4-6 s rows are just its cycle length, no sync).
+  LBC cell-table refresh cadence (result: continuous scan 1..96 in 4-cell
+  chunks, ~150 cells/s, no "all fresh" moment; LeafSpy's 4-8 s rows are
+  just its cycle length, no sync).
 - Data log: `LOG_FILES/Log_<VIN last 8>_YYMMDD_HHmmss.csv`, one per test:
   "Start test" opens it (and arms `PowerTest` from READY), the verdict
   closes it, "Send log" shares it via FileProvider (Telegram if installed).
   LeafSpy 0.52 column layout.
 - ELM327 reads block forever: `BatteryPoller` has a 30 s watchdog that
   closes the transport; the activity auto-reconnects every 10 s.
+
+## On-car findings and sample logs
+
+`docs/findings.md`: step-test calibration of this car (full throttle
+~245 A / 345 V = 85 kW, R ~130-136 mOhm), LBC refresh cadence, why 0x1DB
+latch flag is unreachable, LeafSpy log path on the phone and its sign
+convention, wireless adb, unused `2102` tail bytes. `docs/logs/`: the test
+runs, the probe and LeafSpy logs those numbers come from. Read these
+before touching `PowerTest` thresholds or log analysis.
 
 ## Lessons learned (from LeafDash)
 

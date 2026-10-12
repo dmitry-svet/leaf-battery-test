@@ -45,9 +45,10 @@ ELM327 driver and decoders, without the economy/trip features).
 **Cells probe (60 s)** (shown while connected, no test running) makes the
 poller read only `2102` back to back (~0.4 s per read) and logs every read
 to `LOG_FILES/Probe_<VIN last 8>_YYMMDD_HHmmss.csv` (ms timestamps,
-CP1..CP96). Purpose: find out how often, and in which 12-cell groups, the
-LBC refreshes its cell table, so the step test can read it right after a
-full refresh. Pack A/V and speed are not updated during the probe.
+CP1..CP96). Purpose: see how the LBC refreshes its cell table. Finding:
+a continuous scan 1..96 in 4-cell chunks, one full pass ~0.65 s, so a
+snapshot is only consistent after ~0.7 s of steady current (see
+`docs/findings.md`). Pack A/V and speed are not updated during the probe.
 
 ## Data log
 
@@ -75,6 +76,12 @@ speed ((B4<<8|B5) / 100), `0x510` ambient (B7 * 0.5 - 40).
 
 Decodes come from public sources (OVMS, dalathegreat, OBDb) and were
 checked against the car; Hx uses /102.4 because that matches LeafSpy.
+
+## Sample logs and findings
+
+`docs/logs/` holds real logs from the author's car (two step tests, a
+cells probe, LeafSpy logs for comparison); `docs/findings.md` summarises
+what they show.
 
 ## Build
 

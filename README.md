@@ -25,8 +25,10 @@ ELM327 driver and decoders, without the economy/trip features).
 1. Cruise at ~60 km/h with a steady pedal so the pack current sits in
    **30-60 A**. The screen counts down **10..1**.
 2. **FLOOR IT.** The screen shows the live current, the target (>= 150 A)
-   and the seconds left. The first sample >= 150 A says **HOLD** (its pack
-   voltage is still stale), the second says **RELEASE**.
+   and the seconds left. The first two samples >= 150 A say **HOLD** (the
+   first one's pack voltage and cell table are still partly stale), the
+   third says **RELEASE**. Releasing after one high sample fails the run
+   (too early); after two it still grades.
 3. Verdict:
    - regen (negative current) between cruise and the step -> run void;
    - more than one intermediate sample between 60 A and 150 A -> pedal not
@@ -35,10 +37,11 @@ ELM327 driver and decoders, without the economy/trip features).
    - peak power (A x V) below 70 kW -> not floored (the motor is
      power-limited at ~80 kW, so full throttle is only ~210-250 A);
    - otherwise **OK**: `R = dV / dI` between the cruise sample and the
-     high sample with the deepest pack-voltage sag (the first sample after
-     the step is skipped: its pack V and part of the cell table are stale),
-     in pack mOhm and per cell, plus the cell with the biggest
-     cruise-to-peak drop and the lowest cell at the peak.
+     third high sample (a fixed ~3 s hold; the sag keeps deepening the
+     longer the pedal is held, so a fixed hold is what makes runs
+     comparable, and R also drops ~2 %/C with pack temperature), in pack
+     mOhm and per cell, plus the cell with the biggest cruise-to-peak drop
+     and the lowest cell at the peak. The verdict shows the hold used.
 
 ## Cells probe
 

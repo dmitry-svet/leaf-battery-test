@@ -74,6 +74,9 @@ class PowerTestTest {
         t.onSample(280.0, 350.0)
         assertEquals(PowerTest.Phase.FLOOR, t.phase)
         assertEquals("ТРИМАЙ", t.message)
+        assertEquals("280 A · ще 2", t.detail)
+        t.onSample(280.0, 350.0)
+        assertEquals(PowerTest.Phase.FLOOR, t.phase)
         t.onSample(280.0, 350.0)
         assertEquals(PowerTest.Phase.RELEASE, t.phase)
     }
@@ -119,15 +122,16 @@ class PowerTestTest {
         t.onSample(234.0, 366.6)
         assertEquals(PowerTest.Phase.FLOOR, t.phase)
         t.onSample(243.2, 347.4)
-        assertEquals(PowerTest.Phase.RELEASE, t.phase)
+        assertEquals(PowerTest.Phase.FLOOR, t.phase)
         t.onSample(245.7, 345.5)
+        assertEquals(PowerTest.Phase.RELEASE, t.phase)
         t.onSample(10.0, 374.0)
         assertTrue(t.message, t.ok)
         assertEquals(136.0, t.packMilliOhm!!, 1.0)
-        assertTrue(t.message, t.message.contains("85 кВт"))
+        assertTrue(t.message, t.message.contains("85 кВт, 3 с"))
     }
 
-    @Test fun peakIsTheDeepestSagNotTheFirstHighSample() {
+    @Test fun peakIsNeverTheFirstHighSample() {
         // 2026-10-11 second run: row 18 = 253 A but pack V (361.9) and most
         // cells still pre-step; row 19 = 248 A / 340.1 V fully settled
         val t = PowerTest()
@@ -151,10 +155,36 @@ class PowerTestTest {
         assertEquals("58 A · треба ≥150 A · 7 с", t.detail)
     }
 
-    @Test fun releasingBeforeHoldStillGrades() {
+    @Test fun releasingAfterTwoHighSamplesStillGrades() {
+        val t = run(6, 290.0, 300.0, 50.0)
+        assertEquals(PowerTest.Phase.RESULT, t.phase)
+        assertTrue(t.message, t.ok)
+        assertTrue(t.message, t.message.contains("2 с"))
+    }
+
+    @Test fun releasingAfterOneHighSampleIsTooEarly() {
         val t = run(6, 290.0, 50.0)
         assertEquals(PowerTest.Phase.RESULT, t.phase)
-        assertTrue(t.ok)
+        assertTrue(!t.ok)
+        assertTrue(t.message, t.message.contains("Рано"))
+    }
+
+    @Test fun peakIsTheHoldSampleNotTheDeepestSag() {
+        // 2026-10-12 16:43 run: V keeps sagging the longer the pedal is held;
+        // the peak is fixed at the HOLDth high sample so runs are comparable
+        val t = PowerTest().apply { start() }
+        repeat(6) { t.onSample(46.0, 358.9) }
+        repeat(PowerTest.COUNTDOWN_S) { t.onTick() }
+        t.onSample(251.9, 338.4)        // 1st: mixed, ignored
+        t.onSample(251.7, 337.4)        // 2nd
+        t.onSample(252.6, 336.6)        // 3rd = HOLD = peak
+        assertEquals(PowerTest.Phase.RELEASE, t.phase)
+        t.onSample(252.0, 335.0)        // held longer: deeper sag, must not move the peak
+        t.onSample(124.0, 340.8)
+        assertTrue(t.message, t.ok)
+        assertEquals(252.6, t.peakAmps!!, 1e-9)
+        assertEquals(108.0, t.packMilliOhm!!, 0.5)
+        assertTrue(t.message, t.message.contains("3 с"))
     }
 
     @Test fun noStepAtAllTimesOut() {

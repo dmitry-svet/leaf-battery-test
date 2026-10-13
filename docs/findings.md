@@ -33,9 +33,9 @@ the step (full throttle 242-253 A). `*` current already falling.
   SOC: verdicts use peak kW (>= 70), not amps. Step threshold 150 A.
 - Per-cell R 1.0-1.7 mOhm depending on temperature, spread at peak 64-85
   mV vs ~26 mV at cruise. Min cell at full throttle 3.46-3.63 V.
-- Open issue: the app's peak = lowest pack V = the last sample before
-  release, so R depends on how long the pedal was held. A fixed hold
-  (e.g. the second settled sample, ~2 s) would make runs comparable.
+- Since v0.7 the app's peak is the 3rd high sample (fixed ~3 s hold);
+  before that it was the lowest pack V = last sample before release, so
+  R depended on how long the pedal was held.
 
 ## LBC cell-table refresh (probe 2026-10-12 07:59, `Probe_DC401434_261012_075935.csv`)
 

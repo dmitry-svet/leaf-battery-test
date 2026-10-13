@@ -41,20 +41,22 @@ version with `~/android-sdk/build-tools/*/aapt2 dump badging <apk>`.
   (`0x743 2101`, past the declared ISO-TP length, flow control block size
   1), ambient `0x510`. A slow read failing 3 times is skipped for the session.
 - `PowerTest` state machine: cruise 30-60 A -> 10 s countdown -> FLOOR
-  (`detail` = live A, target, seconds left) -> `HOLD`=2 samples >= 150 A
+  (`detail` = live A, target, seconds left) -> `HOLD`=3 samples >= 150 A
   (the first high sample's pack V is stale, ~20 V too high) = RELEASE ->
   grade. Verdicts: regen before the step voids the run; >1 intermediate
   sample = not abrupt; <4 cruise samples = too little time; peak A*V <
   70 kW = not floored (full throttle on this car = ~245 A / 345 V = 85 kW,
   current is power-limited so an amps threshold would be SOC-dependent);
   else R = dV/dI (pack mOhm, per cell) plus the cell with the biggest
-  cruise-to-peak drop. Peak = high sample with the LOWEST pack V, never
-  the first high sample unless it is the only one: the LBC reports the
-  shunt current instantly but pack V and the cell table lag, and the cell
-  table is rescanned continuously in 4-cell chunks (full pass ~0.65 s), so
-  the first post-step sample mixes fresh and stale cells (seen as cells
-  with 0 mOhm). A snapshot is consistent only after >= 0.7 s of steady
-  current.
+  cruise-to-peak drop. Peak = the HOLDth high sample (fixed ~3 s hold;
+  R grows with hold time, 128 -> 152 mOhm from 2 s to 7 s, so a fixed
+  hold is what makes runs comparable); released after 2 high samples
+  still grades with the 2nd, after 1 fails as "too early". Never the
+  first high sample: the LBC reports the shunt current instantly but pack
+  V and the cell table lag, and the cell table is rescanned continuously
+  in 4-cell chunks (full pass ~0.65 s), so the first post-step sample
+  mixes fresh and stale cells (seen as cells with 0 mOhm). A snapshot is
+  consistent only after >= 0.7 s of steady current.
 - Pack current from `2101` p8-11 (signed / 1024 A, raw sign flipped so + =
   discharge). Hx = raw / 102.4 (matches LeafSpy; public decoders say /100).
 - Cells probe (`BatteryPoller.probe`, `BatteryViewModel.startProbe`): 60 s
